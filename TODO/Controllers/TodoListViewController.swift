@@ -10,23 +10,38 @@ import UIKit
 
 class TodoListViewController: UITableViewController {
     
-    var itemArray = [ "买水杯","吃药","睡觉"]
-    let defaults = UserDefaults.standard
+     var itemArray = [Item]()
+    
+     let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+   
 
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         
-        if let items = defaults.array(forKey: "ToDoListArray") as? [String] {
-            itemArray = items
-        }
+       loadItems()
+       print(dataFilePath!)
+       
+        
+      
+    
     }
+    
     
     
     //MARK: - table view datasource methods
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for:indexPath)
-        cell.textLabel?.text = itemArray[indexPath.row]
+        cell.textLabel?.text = itemArray[indexPath.row].title
+        
+        let item = itemArray[indexPath.row]
+        cell.accessoryType = item.done == true ? .checkmark : .none
+        
+       // if itemArray[indexPath.row].done == false{
+       //     cell.accessoryType = .none
+       //      } else {
+       //      cell.accessoryType = .checkmark
+       //  }
     
         return cell
     }
@@ -40,13 +55,14 @@ class TodoListViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         print(itemArray[indexPath.row])
         
-        if tableView.cellForRow(at: indexPath)?.accessoryType == .checkmark{
-            tableView.cellForRow(at: indexPath)?.accessoryType = .none
-        } else{
-            tableView.cellForRow(at: indexPath)?.accessoryType = .checkmark
-        }
+        itemArray[indexPath.row].done = !itemArray[indexPath.row].done
         
-        tableView.deselectRow(at:indexPath,animated:true)
+        tableView.beginUpdates()
+        saveItems()
+        tableView.reloadRows(at: [indexPath], with: UITableView.RowAnimation.none)
+        tableView.endUpdates()
+        
+        tableView.deselectRow(at: indexPath, animated: true)
     }
     
     //MARK: -Add New Items
@@ -60,8 +76,13 @@ class TodoListViewController: UITableViewController {
         let action = UIAlertAction(title: "添加项目", style: .default){
             (action) in
             // 用户单击添加项目以后执行的代码
-            self.itemArray.append(textField.text!)
-            self.defaults.set(self.itemArray,forKey: "ToDoListArray")
+            let newItem = Item()
+            newItem.title = textField.text!
+            
+            self.itemArray.append(newItem)
+            
+            self.saveItems()
+           
             self.tableView.reloadData()
             
         }
@@ -77,6 +98,29 @@ class TodoListViewController: UITableViewController {
         present(alert,animated: true,completion: nil)
         
         
+    }
+    
+    func saveItems()  {
+        
+        let encoder = PropertyListEncoder()
+        
+        do{
+            let data = try encoder.encode(itemArray)
+            try data.write(to: dataFilePath!)
+        } catch{
+            print("编码错误：\(error)")
+        }
+    }
+    
+    func loadItems(){
+        if let data = try? Data(contentsOf: dataFilePath!){
+            let decoder = PropertyListDecoder()
+            do {
+                itemArray = try decoder.decode([Item].self, from: data)
+            } catch {
+                print("解码item 错误!")
+            }
+        }
     }
     
 }
